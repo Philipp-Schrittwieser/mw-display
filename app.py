@@ -107,9 +107,12 @@ with tab1:
     # Anzeige der gefilterten Videos
     st.subheader(f"Video-Ranking nach Success Score ({len(sorted_df)} Videos)")
     
-    # Videos in einer Tabelle anzeigen
-    show_table = st.checkbox("Als Tabelle anzeigen", False)
-    
+   
+
+    # Container für die Box
+    with st.container(border=True):
+        show_table = st.checkbox("**Als Tabelle anzeigen**", False)
+
     if show_table:
         # Als Tabelle formatieren
         display_df = sorted_df[['tiktok_user', 'description', 'likes', 'shares', 
@@ -133,6 +136,7 @@ with tab1:
                 ),
             },
             hide_index=True,
+            use_container_width=True
         )
     else:
         # Als detaillierte Liste anzeigen
