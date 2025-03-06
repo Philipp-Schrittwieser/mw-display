@@ -7,6 +7,20 @@ import numpy as np
 # App-Stil
 st.set_page_config(page_title="marswalk Video Performance Analysis", layout="wide")
 
+st.markdown("""
+<style>
+  #MainMenu {visibility: hidden;}
+
+  footer {visibility: hidden;}
+
+  #stDecoration {display: none;}
+
+  .stAppToolbar {display: none;}
+
+  .stButton:focus {color: white !important; }
+</style>
+""", unsafe_allow_html=True)
+
 # Daten laden
 @st.cache_data
 def load_data():
