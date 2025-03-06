@@ -125,7 +125,9 @@ with tab1:
 
     # Container für die Box
     with st.container(border=True):
-        show_table = st.checkbox("**Als Tabelle anzeigen**", False)
+        show_table = st.checkbox(":red[**Als Tabelle anzeigen**]", False)
+    
+    st.write("")
 
     if show_table:
         # Als Tabelle formatieren
