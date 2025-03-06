@@ -17,7 +17,7 @@ def load_data():
 data = load_data()
 
 # Dashboard Header
-st.title("🪐 marswalk Video Performance Analysis")
+st.title("Video Performance Analysis")
 
 # Daten in DataFrame umwandeln
 df = pd.DataFrame([{
@@ -33,6 +33,7 @@ df = pd.DataFrame([{
 
 # Success Score berechnen
 with st.sidebar:
+    st.title("🪐 marswalk")
     st.header("Success Score Formel")
     st.write("Stelle die Gewichtung für den Score ein:")
     
