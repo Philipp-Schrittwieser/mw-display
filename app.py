@@ -21,6 +21,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
 # Funktion zum Laden der Daten
 def load_data(file_name):
     with open(file_name, "r") as f:
