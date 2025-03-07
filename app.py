@@ -21,14 +21,18 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Daten laden
-@st.cache_data
-def load_data():
-    with open("tiktok_data.json", "r") as f:
+# Funktion zum Laden der Daten
+def load_data(file_name):
+    with open(file_name, "r") as f:
         data = json.load(f)
     return data
 
-data = load_data()
+# Auswahl der JSON-Datei
+st.sidebar.title("🪐 marswalk")
+file_option = st.sidebar.selectbox("Datenquelle:", ["beliebt.json", "neuest.json"])
+
+# Daten laden
+data = load_data(file_option)
 
 # Dashboard Header
 st.title("Video Performance Analysis")
@@ -46,20 +50,18 @@ df = pd.DataFrame([{
 } for item in data])
 
 # Success Score berechnen
-with st.sidebar:
-    st.title("🪐 marswalk")
-    st.header("Success Score Formel")
-    st.write("Stelle die Gewichtung für den Score ein:")
-    
-    # Gewichtungen per Slider einstellbar
-    likes_weight = st.slider("Likes Gewichtung", 0.1, 5.0, 1.0, 0.1)
-    shares_weight = st.slider("Shares Gewichtung", 0.1, 5.0, 2.0, 0.1)
-    bookmarks_weight = st.slider("Bookmarks Gewichtung", 0.1, 5.0, 1.5, 0.1)
-    comments_weight = st.slider("Comments Gewichtung", 0.1, 5.0, 1.0, 0.1)
-    
-    normalize = st.checkbox("Werte normalisieren (empfohlen)", True)
-    
-    st.info("Die Formel berücksichtigt alle Metriken mit deinen Gewichtungen")
+st.sidebar.header("Success Score Formel")
+st.sidebar.write("Stelle die Gewichtung für den Score ein:")
+
+# Gewichtungen per Slider einstellbar
+likes_weight = st.sidebar.slider("Likes Gewichtung", 0.1, 5.0, 1.0, 0.1)
+shares_weight = st.sidebar.slider("Shares Gewichtung", 0.1, 5.0, 2.0, 0.1)
+bookmarks_weight = st.sidebar.slider("Bookmarks Gewichtung", 0.1, 5.0, 1.5, 0.1)
+comments_weight = st.sidebar.slider("Comments Gewichtung", 0.1, 5.0, 1.0, 0.1)
+
+normalize = st.sidebar.checkbox("Werte normalisieren (empfohlen)", True)
+
+st.sidebar.info("Die Formel berücksichtigt alle Metriken mit deinen Gewichtungen")
 
 # Success Score berechnen
 if normalize:
@@ -125,7 +127,7 @@ with tab1:
 
     # Container für die Box
     with st.container(border=True):
-        show_table = st.checkbox(":red[**Als Tabelle anzeigen**]", False)
+        show_table = st.checkbox(":red[**Als Tabelle anzeigen**]", True)
     
     st.write("")
 
