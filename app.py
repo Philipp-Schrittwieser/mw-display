@@ -14,7 +14,6 @@ st.markdown("""
   footer {visibility: hidden;}
   [data-testid=stDecoration] {display: none;}
   .stAppToolbar {display: none;}
-</style>
 """, unsafe_allow_html=True)
 
 
@@ -312,4 +311,121 @@ with st.expander("ℹ️ Wie wird der Success Score berechnet?"):
     ```
     
     Passe die Gewichtungen in der Seitenleiste an, um verschiedene Bewertungsmodelle zu testen!
-    """) 
+    """)
+
+# Neues Feld mit allen Beschreibungen als nummerierte Liste
+with st.expander("📋 Alle Video-Beschreibungen"):
+    # Erstelle eine nummerierte Liste aller Beschreibungen als String
+    descriptions_list = ""
+    for i, desc in enumerate(df['description'], 1):
+        descriptions_list += f"{i}. {desc}\n"
+    
+    # Zeige die Liste an
+    st.text_area("Liste aller Videos:", descriptions_list, height=300)
+
+# Gemini-Analyse in einem eigenen Expander, der standardmäßig geöffnet ist
+with st.expander("🧠 KI-Trend-Analyse", expanded=True):
+    # Zusätzliche Informationen für den Prompt
+    additional_info = st.text_area(
+        "Zusätzliche Informationen für die Analyse (z.B. Zielgruppe, Produkt, spezifische Anforderungen):",
+        placeholder="Beispiel: Mein Kunde ist Coca Cola und sucht nach Ideen für erfrischende Sommer-Content..."
+    )
+    
+    # Zeile mit Buttons
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        analyze_button = st.button("🔍 Call Gemini für Trend-Analyse", use_container_width=True)
+    with col2:
+        regenerate_button = st.button("🔄 Neu generieren", use_container_width=True)
+    with col3:
+        reset_button = st.button("❌ Reset", use_container_width=True)
+    
+    # Wenn Reset geklickt wird, Session State zurücksetzen
+    if reset_button:
+        if 'gemini_response' in st.session_state:
+            del st.session_state['gemini_response']
+        st.rerun()
+    
+    # Wenn Analyse-Button oder Regenerate-Button geklickt wird oder bereits eine Antwort im Session State ist
+    if analyze_button or regenerate_button or 'gemini_response' in st.session_state:
+        # Nur API aufrufen, wenn der Button geklickt wurde oder neu generieren
+        if analyze_button or regenerate_button:
+            # Loading-Spinner während der Analyse
+            with st.spinner("Gemini analysiert die Video-Beschreibungen..."):
+                try:
+                    # Gemini API direkt einbinden
+                    import google.generativeai as genai
+                    
+                    # API-Key aus Streamlit Secrets oder als Input
+                    api_key = st.secrets.get("GEMINI_API_KEY", None)
+                    
+                    if not api_key:
+                        api_key = st.text_input("Bitte Gemini API-Key eingeben:", type="password")
+                        if not api_key:
+                            st.warning("API-Key wird benötigt, um Gemini zu nutzen.")
+                            st.stop()
+                    
+                    # Gemini konfigurieren
+                    genai.configure(api_key=api_key)
+                    
+                    # Modell initialisieren
+                    model = genai.GenerativeModel('gemini-2.0-flash')
+                    
+                    # Erstelle die Liste der Beschreibungen, falls sie noch nicht existiert
+                    if 'descriptions_list' not in locals():
+                        descriptions_list = ""
+                        for i, desc in enumerate(df['description'], 1):
+                            descriptions_list += f"{i}. {desc}\n"
+                    
+                    # Zusätzliche Informationen in den Prompt einbauen
+                    additional_context = ""
+                    if additional_info:
+                        additional_context = f"""
+                        Zusätzliche Informationen:
+                        {additional_info}
+                        
+                        Berücksichtige diese Informationen besonders in deiner Analyse und den Empfehlungen.
+                        """
+                    
+                    # Prompt erstellen
+                    prompt = f"""
+                    Du bist eine TikTok-Agentur und versuchst aus folgenden Bildbeschreibungen Anzeichen für Trends zu sammeln, 
+                    um weiteren Content zu generieren. Analysiere diese Beschreibungen und identifiziere:
+                    
+                    1. Häufige Themen und Muster
+                    2. Erfolgreiche Hashtags
+                    3. Content-Formate die gut funktionieren
+                    4. Empfehlungen für neue Content-Ideen (Gib hier konkrete Beispiele für Video Ideen)
+
+                    ENDE, höre nach 4. auf und gebe keine weiteren Informationen.
+                    
+                    {additional_context}
+                    
+                    Beschreibungen:
+                    {descriptions_list}
+                    
+                    Antworte auf Deutsch und formatiere deine Antwort mit Markdown.
+                    """
+                    
+                    # Antwort generieren
+                    response = model.generate_content(prompt)
+                    
+                    # Antwort im Session State speichern
+                    st.session_state['gemini_response'] = response.text
+                    
+                except Exception as e:
+                    st.error(f"Fehler bei der Gemini-API: {str(e)}")
+                    st.info("Tipp: Stelle sicher, dass du einen gültigen API-Key hast und die Google Generative AI Bibliothek installiert ist (pip install google-generativeai)")
+        
+        # Antwort anzeigen (entweder neu generiert oder aus dem Session State)
+        if 'gemini_response' in st.session_state:
+            st.success("Trend-Analyse abgeschlossen!")
+            st.markdown(st.session_state['gemini_response'])
+            
+            # Download-Button für die Analyse
+            st.download_button(
+                label="Analyse als Text herunterladen",
+                data=st.session_state['gemini_response'],
+                file_name="tiktok_trend_analyse.txt",
+                mime="text/plain"
+            ) 
