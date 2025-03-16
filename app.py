@@ -7,19 +7,17 @@ import numpy as np
 # App-Stil
 st.set_page_config(page_title="marswalk Video Performance Analysis", layout="wide")
 
+
 st.markdown("""
 <style>
   #MainMenu {visibility: hidden;}
-
   footer {visibility: hidden;}
-
-  #stDecoration {display: none;}
-
+  [data-testid=stDecoration] {display: none;}
   .stAppToolbar {display: none;}
-
-  .stButton:focus {color: white !important; }
 </style>
 """, unsafe_allow_html=True)
+
+
 
 
 # Funktion zum Laden der Daten
@@ -29,8 +27,9 @@ def load_data(file_name):
     return data
 
 # Auswahl der JSON-Datei
-st.sidebar.title("🪐 marswalk")
-file_option = st.sidebar.selectbox("Datenquelle:", ["beliebt.json", "neuest.json"])
+# st.sidebar.title("🪐 marswalk")
+st.sidebar.image("logo.png", width=250)
+file_option = st.sidebar.selectbox("Datenquelle:", ["mit_views.json", "ohne_views.json"])
 
 # Daten laden
 data = load_data(file_option)
@@ -41,13 +40,14 @@ st.title("Video Performance Analysis")
 # Daten in DataFrame umwandeln
 df = pd.DataFrame([{
     "tiktok_user": item.get("tiktok_user", "Unbekannt"),
-    "description": item.get("description", "")[:80],
-    "video_url": item.get("video_url", ""),
-    "likes": item.get("likes", 0),
-    "shares": item.get("shares", 0),
-    "bookmarks": item.get("bookmarks", 0),
-    "comments": item.get("comments", 0),
+    "description": item.get("title", "")[:80],
+    "video_url": item.get("item_url", item.get("video_url", "")),
+    "likes": int(item.get("likes", 0)) if isinstance(item.get("likes"), (int, float)) or (isinstance(item.get("likes"), str) and item.get("likes").isdigit()) else 0,
+    "shares": int(item.get("shares", 0)) if isinstance(item.get("shares"), (int, float)) or (isinstance(item.get("shares"), str) and item.get("shares").isdigit()) else 0,
+    "bookmarks": int(item.get("bookmarks", 0)) if isinstance(item.get("bookmarks"), (int, float)) or (isinstance(item.get("bookmarks"), str) and item.get("bookmarks").isdigit()) else 0,
+    "comments": int(item.get("comments", 0)) if isinstance(item.get("comments"), (int, float)) or (isinstance(item.get("comments"), str) and item.get("comments").isdigit()) else 0,
     "song_title": item.get("song_title", ""),
+    "views": int(item.get("statsV2", {}).get("playCount", 0) if item.get("statsV2") is not None else 0)
 } for item in data])
 
 # Success Score berechnen
@@ -59,6 +59,7 @@ likes_weight = st.sidebar.slider("Likes Gewichtung", 0.1, 5.0, 1.0, 0.1)
 shares_weight = st.sidebar.slider("Shares Gewichtung", 0.1, 5.0, 2.0, 0.1)
 bookmarks_weight = st.sidebar.slider("Bookmarks Gewichtung", 0.1, 5.0, 1.5, 0.1)
 comments_weight = st.sidebar.slider("Comments Gewichtung", 0.1, 5.0, 1.0, 0.1)
+views_weight = st.sidebar.slider("Views Gewichtung", 0.0, 5.0, 0.5, 0.1)
 
 normalize = st.sidebar.checkbox("Werte normalisieren (empfohlen)", True)
 
@@ -71,22 +72,25 @@ if normalize:
     df["shares_norm"] = df["shares"] / df["shares"].max() if df["shares"].max() > 0 else 0
     df["bookmarks_norm"] = df["bookmarks"] / df["bookmarks"].max() if df["bookmarks"].max() > 0 else 0
     df["comments_norm"] = df["comments"] / df["comments"].max() if df["comments"].max() > 0 else 0
+    df["views_norm"] = df["views"] / df["views"].max() if df["views"].max() > 0 else 0
     
     # Gewichteter Score (0-100)
     df["success_score"] = (
         df["likes_norm"] * likes_weight +
         df["shares_norm"] * shares_weight +
         df["bookmarks_norm"] * bookmarks_weight +
-        df["comments_norm"] * comments_weight
-    ) * 100 / (likes_weight + shares_weight + bookmarks_weight + comments_weight)
+        df["comments_norm"] * comments_weight +
+        df["views_norm"] * views_weight
+    ) * 100 / (likes_weight + shares_weight + bookmarks_weight + comments_weight + views_weight)
 else:
     # Direkter gewichteter Score
     df["success_score"] = (
         df["likes"] * likes_weight +
         df["shares"] * shares_weight * 100 +  # Weil Shares typischerweise deutlich niedriger sind
         df["bookmarks"] * bookmarks_weight * 10 +
-        df["comments"] * comments_weight * 10
-    ) / (likes_weight + shares_weight + bookmarks_weight + comments_weight)
+        df["comments"] * comments_weight * 10 +
+        df["views"] * views_weight * 0.01
+    ) / (likes_weight + shares_weight + bookmarks_weight + comments_weight + views_weight)
 
 # Tabs für verschiedene Ansichten
 tab1, tab2 = st.tabs(["📊 Video Ranking", "📈 Top-Videos Analyse"])
@@ -134,10 +138,10 @@ with tab1:
 
     if show_table:
         # Als Tabelle formatieren
-        display_df = sorted_df[['tiktok_user', 'description', 'likes', 'shares', 
-                               'bookmarks', 'comments', 'success_score']].copy()
-        display_df.columns = ['Creator', 'Beschreibung', 'Likes', 'Shares', 'Bookmarks', 
-                             'Comments', 'Success Score']
+        display_df = sorted_df[['tiktok_user', 'description', 'video_url', 'likes', 'shares', 
+                               'bookmarks', 'comments', 'views', 'success_score']].copy()
+        display_df.columns = ['Creator', 'Beschreibung', 'Video Link', 'Likes', 'Shares', 'Bookmarks', 
+                             'Comments', 'Views', 'Success Score']
         display_df['Success Score'] = display_df['Success Score'].round(1)
         
         st.dataframe(
@@ -152,6 +156,10 @@ with tab1:
                 "Beschreibung": st.column_config.TextColumn(
                     "Beschreibung",
                     width="medium",
+                ),
+                "Video Link": st.column_config.LinkColumn(
+                    "Video Link",
+                    display_text="Link"
                 ),
             },
             hide_index=True,
@@ -171,11 +179,12 @@ with tab1:
                               f"<span style='color:{score_color};font-weight:bold;'>{row.success_score:.1f}</span>/100", 
                               unsafe_allow_html=True)
                     
-                    metric_cols = st.columns(4)
+                    metric_cols = st.columns(5)
                     metric_cols[0].metric("❤️ Likes", f"{row.likes:,}")
                     metric_cols[1].metric("↗️ Shares", f"{row.shares:,}")
                     metric_cols[2].metric("🔖 Bookmarks", f"{row.bookmarks:,}")
                     metric_cols[3].metric("💬 Comments", f"{row.comments:,}")
+                    metric_cols[4].metric("👁️ Views", f"{row.views:,}")
                     
                     st.markdown(f"[Video auf TikTok ansehen]({row.video_url})")
                 
@@ -228,19 +237,21 @@ with tab2:
     
     # Normalisierte Werte für bessere Darstellung
     metrics_df = pd.DataFrame({
-        "Video": np.repeat(top10["video_name"].tolist(), 4),
-        "Metrik": ["Likes", "Shares", "Bookmarks", "Comments"] * 10,
+        "Video": np.repeat(top10["video_name"].tolist(), 5),  # 5 statt 4
+        "Metrik": ["Likes", "Shares", "Bookmarks", "Comments", "Views"] * 10,
         "Wert": np.concatenate([
             top10["likes_norm"].values, 
             top10["shares_norm"].values,
             top10["bookmarks_norm"].values,
-            top10["comments_norm"].values
+            top10["comments_norm"].values,
+            top10["views_norm"].values
         ]),
         "Gewicht": np.concatenate([
             [likes_weight] * 10,
             [shares_weight] * 10,
             [bookmarks_weight] * 10,
-            [comments_weight] * 10
+            [comments_weight] * 10,
+            [views_weight] * 10
         ])
     })
     
@@ -260,12 +271,13 @@ with tab2:
     st.subheader("Was trägt am meisten zum Success Score bei?")
     
     corr_df = pd.DataFrame({
-        "Metrik": ["Likes", "Shares", "Bookmarks", "Comments"],
+        "Metrik": ["Likes", "Shares", "Bookmarks", "Comments", "Views"],
         "Korrelation mit Score": [
             df["likes"].corr(df["success_score"]),
             df["shares"].corr(df["success_score"]),
             df["bookmarks"].corr(df["success_score"]),
-            df["comments"].corr(df["success_score"])
+            df["comments"].corr(df["success_score"]),
+            df["views"].corr(df["success_score"])
         ]
     })
     
@@ -294,8 +306,9 @@ with st.expander("ℹ️ Wie wird der Success Score berechnet?"):
     **Formel**:
     ```
     Success Score = (likes_norm * likes_weight + shares_norm * shares_weight + 
-                    bookmarks_norm * bookmarks_weight + comments_norm * comments_weight) * 100 / 
-                    (likes_weight + shares_weight + bookmarks_weight + comments_weight)
+                    bookmarks_norm * bookmarks_weight + comments_norm * comments_weight +
+                    views_norm * views_weight) * 100 / 
+                    (likes_weight + shares_weight + bookmarks_weight + comments_weight + views_weight)
     ```
     
     Passe die Gewichtungen in der Seitenleiste an, um verschiedene Bewertungsmodelle zu testen!
